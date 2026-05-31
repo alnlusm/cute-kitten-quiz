@@ -1,4 +1,4 @@
-const letters = ["A", "B", "C", "D"];
+const letters = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const allQuestions = window.QUIZ_QUESTIONS || [];
 
 const state = {
@@ -6,6 +6,7 @@ const state = {
   questions: [],
   index: 0,
   selected: new Set(),
+  currentCorrect: [],
   checked: false,
   correct: 0,
   wrong: 0,
@@ -50,6 +51,7 @@ function startQuiz() {
   state.questions = buildQuestionSet();
   state.index = 0;
   state.selected = new Set();
+  state.currentCorrect = [];
   state.checked = false;
   state.correct = 0;
   state.wrong = 0;
@@ -92,13 +94,23 @@ function renderQuestion() {
   elements.questionText.textContent = question.question;
   elements.answersList.innerHTML = "";
 
-  question.answers.forEach((answer, index) => {
+  const randomizedAnswers = shuffled(
+    question.answers.map((answer, index) => ({
+      answer,
+      isCorrect: question.correct.includes(index),
+    })),
+  );
+  state.currentCorrect = randomizedAnswers
+    .map((answer, index) => (answer.isCorrect ? index : -1))
+    .filter((index) => index >= 0);
+
+  randomizedAnswers.forEach((answerModel, index) => {
     const button = document.createElement("button");
     button.className = "answer-button";
     button.type = "button";
     button.dataset.index = String(index);
-    button.innerHTML = `<span class="letter">${letters[index]}</span><span class="answer-text"></span>`;
-    button.querySelector(".answer-text").textContent = answer;
+    button.innerHTML = `<span class="letter">${letters[index] || index + 1}</span><span class="answer-text"></span>`;
+    button.querySelector(".answer-text").textContent = answerModel.answer;
     button.addEventListener("click", () => toggleAnswer(index, button));
     elements.answersList.append(button);
   });
@@ -119,16 +131,15 @@ function toggleAnswer(index, button) {
 
 function checkAnswer() {
   if (!state.selected.size || state.checked) return;
-  const question = currentQuestion();
   state.checked = true;
-  const isCorrect = sameAnswerSet(state.selected, question.correct);
+  const isCorrect = sameAnswerSet(state.selected, state.currentCorrect);
   if (isCorrect) state.correct += 1;
   else state.wrong += 1;
 
   [...elements.answersList.children].forEach((button) => {
     const index = Number(button.dataset.index);
-    if (question.correct.includes(index)) button.classList.add("correct");
-    if (state.selected.has(index) && !question.correct.includes(index)) button.classList.add("wrong");
+    if (state.currentCorrect.includes(index)) button.classList.add("correct");
+    if (state.selected.has(index) && !state.currentCorrect.includes(index)) button.classList.add("wrong");
   });
 
   elements.nextButton.disabled = false;
